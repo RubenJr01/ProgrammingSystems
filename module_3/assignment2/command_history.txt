@@ -1,0 +1,10 @@
+$ pwd
+/workspaces/ProgrammingSystems/module_3/assignment2
+$ whoami
+codespace
+$ ls
+Cargo.lock
+Cargo.toml
+command_history.txt
+src
+target
