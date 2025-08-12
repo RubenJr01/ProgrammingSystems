@@ -41,6 +41,7 @@ struct ChartResult {
 }
 #[derive(Deserialize)]
 struct ChartMeta {
+    #[serde(rename = "regularMarketPrice")]
     regular_market_price: Option<f64>,
 }
 
@@ -77,9 +78,9 @@ fn fetch_yahoo_chart_price(url: &str, tag: &str) -> ApiResult<f64> {
             if resp.status() == 200 {
                 match resp.into_json::<YahooChartResp>() {
                     Ok(body) => match body.chart.result.get(0) {
-                        Some(entry) => match entry.meta.regularMarketPrice {
+                        Some(entry) => match entry.meta.regular_market_price {
                             Some(v) => ApiResult::Success(v),
-                            None => ApiResult::ApiError(format!("{tag}: regularMarketPrice missing")),
+                            None => ApiResult::ApiError(format!("{tag}: regular_market_price missing")),
                         },
                         None => ApiResult::ApiError(format!("{tag}: empty result array")),
                     },
