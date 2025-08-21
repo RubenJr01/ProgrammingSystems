@@ -1,22 +1,22 @@
+use std::fs;
 use std::io::{self, BufRead};
+use std::path::Path;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 
 use serde::Serialize;
 
-// ----- Output format (as required) -----
 #[derive(Clone, Serialize)]
 struct WebsiteStatus {
     url: String,
-    status_code: i32,           // HTTP code or -1 on network error
-    response_time_ms: u128,     // elapsed in ms
+    status_code: i32, 
+    response_time_ms: u128, 
     #[serde(with = "ts_seconds")]
-    timestamp: SystemTime,      // when recorded
-    error: Option<String>,      // error text if any
+    timestamp: SystemTime,      
+    error: Option<String>,
 }
 
-// Serialize SystemTime as unix seconds
 mod ts_seconds {
     use serde::Serializer;
     use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -101,6 +101,19 @@ fn parse_args() -> Config {
     cfg
 }
 
+fn read_urls_from_file(filename: &str) -> Vec<String> {
+    let file = fs::File::open(Path::new(filename))
+        .expect("Failed to open urls.txt");
+    let reader = io::BufReader::new(file);
+
+    reader
+        .lines()
+        .filter_map(Result::ok)
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect()
+}
+
 fn check_once(url: &str, timeout_ms: u64) -> WebsiteStatus {
     let start = Instant::now();
     let agent = ureq::AgentBuilder::new()
@@ -178,36 +191,10 @@ fn run_pool(urls: Vec<String>, workers: usize, timeout_ms: u64, retries: u32) ->
 fn main() {
     let cfg = parse_args();
 
-    // URLs: either after a lone "--", or from stdin (one URL per line)
-    let mut urls: Vec<String> = Vec::new();
-    let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if let Some(idx) = args.iter().position(|s| s == "--") {
-        for s in args.into_iter().skip(idx + 1) {
-            urls.push(s);
-        }
-    }
+    let urls = read_urls_from_file("urls.txt");
     if urls.is_empty() {
-        let stdin = io::stdin();
-        for line in stdin.lock().lines().flatten() {
-            let l = line.trim();
-            if !l.is_empty() && !l.starts_with('#') {
-                urls.push(l.to_string());
-            }
-        }
-    }
-
-    if urls.is_empty() {
-        eprintln!(
-"USAGE (pick one):
-  cat urls.txt | cargo run --release -- [options]
-  cargo run --release -- [options] -- https://a.com https://b.com
-Options:
-  -w, --workers <N>   default 16
-  -t, --timeout <ms>  default 5000
-  -r, --retries <N>   default 0
-  --json              print JSON (uses serde/serde_json)"
-        );
-        std::process::exit(2);
+        eprintln!("urls.txt is empty or invalid.");
+        std::process::exit(1);
     }
 
     let results = run_pool(urls, cfg.workers, cfg.timeout_ms, cfg.max_retries);
