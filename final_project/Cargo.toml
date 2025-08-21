@@ -1,0 +1,9 @@
+[package]
+name = "final_project"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ureq = "2"
+serde= { version = "1", features = ["derive"] }
+serde_json = "1"
